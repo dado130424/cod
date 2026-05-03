@@ -46,7 +46,7 @@ let player = {
     // Sistema XP e livelli
     xp: 0,
     level: 1,
-    xpForNextLevel: 100,
+    xpForNextLevel: 200,
     skillPoints: 0,
     healthRegen: 0,
     shieldMax: 50,
@@ -590,7 +590,7 @@ function levelUp() {
     player.level++;
     player.skillPoints += 1;
     player.xp -= player.xpForNextLevel;
-    player.xpForNextLevel = Math.floor(player.xpForNextLevel * 1.1); // Aumenta XP richiesto del 10%
+    player.xpForNextLevel = Math.floor(player.xpForNextLevel * 1.2); // Aumenta XP richiesto del 20%
     
     // Notifica di level up
     const notification = document.createElement('div');
@@ -2575,6 +2575,11 @@ function switchWeapon(weaponType) {
 function updatePlayer() {
     if (!gameRunning) return;
     
+    // Applica rigenerazione salute se acquistata
+    if (player.healthRegen > 0 && player.health < player.maxHealth) {
+        player.health = Math.min(player.maxHealth, player.health + player.healthRegen);
+    }
+    
     // Fuoco automatico per mitragliatrice
     if ((player.isMouseDown || player.eKeyPressed) && player.currentWeapon === 'machineGun') {
         shoot();
@@ -3158,7 +3163,7 @@ function updateBullets() {
                     scene.remove(enemy);
                     enemies.splice(j, 1);
                     kills++; // Incrementa uccisioni
-                    gainXP(50); // Guadagna 50 XP per ogni nemico ucciso
+                    gainXP(25); // Guadagna 25 XP per ogni nemico ucciso
                 }
                 break;
             }
@@ -3193,7 +3198,7 @@ function updateBullets() {
                     scene.remove(enemy);
                     platformEnemies.splice(j, 1);
                     kills++; // Incrementa uccisioni
-                    gainXP(50); // Guadagna 50 XP per ogni nemico ucciso
+                    gainXP(25); // Guadagna 25 XP per ogni nemico ucciso
                 }
                 break;
             }
