@@ -1,0 +1,786 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Shooter FPS</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+            background: #000;
+            font-family: Arial, sans-serif;
+            cursor: crosshair;
+        }
+        
+        #gameCanvas {
+            display: block;
+        }
+        
+        #ui {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 100;
+        }
+        
+        #healthBar {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            width: 200px;
+            height: 25px;
+            background: rgba(0, 0, 0, 0.7);
+            border: 2px solid #ff0000;
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 0 10px rgba(255, 0, 0, 0.5);
+        }
+        
+        #healthFill {
+            height: 100%;
+            background: linear-gradient(90deg, #ff0000, #ff6666, #ff9999);
+            transition: width 0.3s ease, background 0.3s ease;
+            width: 100%;
+            box-shadow: inset 0 0 10px rgba(255, 255, 255, 0.3);
+        }
+        
+        #healthText {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: white;
+            font-weight: bold;
+            font-size: 12px;
+            text-shadow: 1px 1px 2px rgba(0,0,0,0.8);
+        }
+        
+        #crosshair {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 30px;
+            height: 30px;
+            border: 3px solid rgba(255, 255, 255, 0.8);
+            border-radius: 50%;
+            opacity: 0.9;
+            box-shadow: 0 0 10px rgba(255, 255, 255, 0.5);
+        }
+        
+        #crosshair::before,
+        #crosshair::after {
+            content: '';
+            position: absolute;
+            background: rgba(255, 255, 255, 0.6);
+        }
+        
+        #crosshair::before {
+            width: 2px;
+            height: 10px;
+            top: -15px;
+            left: 50%;
+            transform: translateX(-50%);
+        }
+        
+        #crosshair::after {
+            width: 10px;
+            height: 2px;
+            left: -15px;
+            top: 50%;
+            transform: translateY(-50%);
+        }
+        
+        #gameOver {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            text-align: center;
+            color: white;
+            display: none;
+            background: linear-gradient(135deg, rgba(0, 0, 0, 0.9), rgba(20, 0, 0, 0.9));
+            padding: 40px;
+            border-radius: 20px;
+            border: 2px solid #ff0000;
+            box-shadow: 0 0 30px rgba(255, 0, 0, 0.5);
+        }
+        
+        #gameOver h2 {
+            color: #ff0000;
+            margin-bottom: 20px;
+            font-size: 32px;
+            text-shadow: 0 0 10px rgba(255, 0, 0, 0.8);
+        }
+        
+        #gameOver p {
+            font-size: 18px;
+            margin-bottom: 25px;
+            text-shadow: 1px 1px 2px rgba(0,0,0,0.8);
+        }
+        
+        #restartBtn {
+            background: linear-gradient(135deg, #ff0000, #cc0000);
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            font-size: 18px;
+            font-weight: bold;
+            border-radius: 10px;
+            cursor: pointer;
+            pointer-events: all;
+            box-shadow: 0 4px 15px rgba(255, 0, 0, 0.3);
+            transition: all 0.3s ease;
+        }
+        
+        #restartBtn:hover {
+            background: linear-gradient(135deg, #ff3333, #ff0000);
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(255, 0, 0, 0.4);
+        }
+        
+        #ammo {
+            position: absolute;
+            bottom: 20px;
+            right: 20px;
+            color: white;
+            font-size: 18px;
+            font-weight: bold;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.8);
+        }
+        
+        #weaponIndicator {
+            position: absolute;
+            bottom: 50px;
+            right: 20px;
+            color: #ffaa00;
+            font-size: 16px;
+            font-weight: bold;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.8);
+            background: rgba(0, 0, 0, 0.6);
+            padding: 5px 10px;
+            border-radius: 5px;
+            border: 1px solid rgba(255, 255, 255, 0.3);
+        }
+        
+        #weaponIcons {
+            position: absolute;
+            bottom: 100px;
+            right: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            pointer-events: none;
+        }
+        
+        .weaponIcon {
+            width: 50px;
+            height: 50px;
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            border-radius: 8px;
+            background: rgba(0, 0, 0, 0.5);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+            color: rgba(255, 255, 255, 0.3);
+            transition: all 0.3s ease;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.5);
+            position: relative;
+        }
+        
+        .weaponIcon .key {
+            position: absolute;
+            top: 2px;
+            left: 2px;
+            font-size: 10px;
+            font-weight: bold;
+            color: rgba(255, 255, 255, 0.8);
+            text-shadow: 1px 1px 2px rgba(0,0,0,0.8);
+        }
+        
+        .weaponIcon .cooldown {
+            position: absolute;
+            bottom: 2px;
+            right: 2px;
+            font-size: 8px;
+            font-weight: bold;
+            color: #ff0000;
+            background: rgba(0, 0, 0, 0.7);
+            padding: 1px 3px;
+            border-radius: 3px;
+            display: none;
+        }
+        
+        .weaponIcon.active {
+            border-color: #ffffff;
+            background: rgba(255, 255, 255, 0.2);
+            color: #ffffff;
+            box-shadow: 0 0 15px rgba(255, 255, 255, 0.5);
+        }
+        
+        .weaponIcon.pistol {
+            border-color: rgba(255, 170, 0, 0.3);
+        }
+        
+        .weaponIcon.pistol.active {
+            border-color: #ffaa00;
+            background: rgba(255, 170, 0, 0.3);
+            color: #ffaa00;
+            box-shadow: 0 0 15px rgba(255, 170, 0, 0.5);
+        }
+        
+        .weaponIcon.machineGun {
+            border-color: rgba(255, 102, 0, 0.3);
+        }
+        
+        .weaponIcon.machineGun.active {
+            border-color: #ff6600;
+            background: rgba(255, 102, 0, 0.3);
+            color: #ff6600;
+            box-shadow: 0 0 15px rgba(255, 102, 0, 0.5);
+        }
+        
+        .weaponIcon.shotgun {
+            border-color: rgba(255, 255, 0, 0.3);
+        }
+        
+        .weaponIcon.shotgun.active {
+            border-color: #ffff00;
+            background: rgba(255, 255, 0, 0.3);
+            color: #ffff00;
+            box-shadow: 0 0 15px rgba(255, 255, 0, 0.5);
+        }
+        
+        .weaponIcon.grenade {
+            border-color: rgba(0, 255, 0, 0.3);
+        }
+        
+        .weaponIcon.grenade.active {
+            border-color: #00ff00;
+            background: rgba(0, 255, 0, 0.3);
+            color: #00ff00;
+            box-shadow: 0 0 15px rgba(0, 255, 0, 0.5);
+        }
+        
+        #reloadBar {
+            position: absolute;
+            bottom: 90px;
+            right: 20px;
+            width: 200px;
+            height: 8px;
+            background: rgba(255, 255, 255, 0.2);
+            border: 1px solid rgba(255, 255, 255, 0.5);
+            border-radius: 4px;
+            overflow: hidden;
+            display: none;
+        }
+        
+        #reloadFill {
+            height: 100%;
+            background: linear-gradient(90deg, #ff9900, #ffcc00);
+            transition: width 0.1s linear;
+            width: 0%;
+        }
+        
+        #controls {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            color: white;
+            text-align: right;
+            font-size: 12px;
+            opacity: 0.8;
+            background: rgba(0, 0, 0, 0.6);
+            padding: 15px;
+            border-radius: 10px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            text-shadow: 1px 1px 2px rgba(0,0,0,0.8);
+        }
+        
+        #controls div {
+            margin: 3px 0;
+        }
+        
+        #controls .key {
+            color: #ffcc00;
+            font-weight: bold;
+        }
+        
+        #abilities {
+            position: absolute;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            gap: 15px;
+            pointer-events: none;
+            z-index: 100;
+        }
+        
+        .abilitySlot {
+            width: 60px;
+            height: 60px;
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            border-radius: 10px;
+            background: rgba(0, 0, 0, 0.7);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+            transition: all 0.3s ease;
+        }
+        
+        .abilitySlot.active {
+            border-color: #ffffff;
+            background: rgba(255, 255, 255, 0.2);
+            box-shadow: 0 0 20px rgba(255, 255, 255, 0.6);
+            animation: abilityPulse 1s infinite;
+        }
+        
+        .abilitySlot.speed {
+            border-color: rgba(255, 255, 0, 0.3);
+        }
+        
+        .abilitySlot.speed.active {
+            border-color: #ffff00;
+            background: rgba(255, 255, 0, 0.3);
+            box-shadow: 0 0 20px rgba(255, 255, 0, 0.6);
+        }
+        
+        .abilitySlot.shield {
+            border-color: rgba(0, 255, 0, 0.3);
+        }
+        
+        .abilitySlot.shield.active {
+            border-color: #00ff00;
+            background: rgba(0, 255, 0, 0.3);
+            box-shadow: 0 0 20px rgba(0, 255, 0, 0.6);
+        }
+        
+        .abilitySlot.invisibility {
+            border-color: rgba(255, 0, 255, 0.3);
+        }
+        
+        .abilitySlot.invisibility.active {
+            border-color: #ff00ff;
+            background: rgba(255, 0, 255, 0.3);
+            box-shadow: 0 0 20px rgba(255, 0, 255, 0.6);
+        }
+        
+        .abilityIcon {
+            font-size: 24px;
+            margin-bottom: 2px;
+        }
+        
+        .abilityTimer {
+            font-size: 10px;
+            color: white;
+            font-weight: bold;
+            text-shadow: 1px 1px 2px rgba(0,0,0,0.8);
+        }
+        
+        .abilityCooldown {
+            position: absolute;
+            bottom: 2px;
+            right: 2px;
+            font-size: 8px;
+            color: #ff6666;
+            background: rgba(0, 0, 0, 0.8);
+            padding: 1px 3px;
+            border-radius: 3px;
+            font-weight: bold;
+        }
+        
+        #shieldHealthBar {
+            position: absolute;
+            top: 85px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 120px;
+            height: 6px;
+            background: rgba(0, 0, 0, 0.7);
+            border: 1px solid #00ff00;
+            border-radius: 3px;
+            overflow: hidden;
+            display: none;
+        }
+        
+        #shieldHealthFill {
+            height: 100%;
+            background: linear-gradient(90deg, #00ff00, #66ff66);
+            transition: width 0.3s ease;
+            width: 100%;
+        }
+        
+        @keyframes abilityPulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+        }
+        
+        #xpContainer {
+            position: absolute;
+            bottom: 20px;
+            left: 20px;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            background: rgba(0, 0, 0, 0.7);
+            padding: 10px 15px;
+            border-radius: 10px;
+            border: 1px solid rgba(255, 170, 0, 0.5);
+        }
+        
+        #levelDisplay {
+            color: #ffaa00;
+            font-weight: bold;
+            font-size: 16px;
+            text-shadow: 1px 1px 2px rgba(0,0,0,0.8);
+            min-width: 80px;
+        }
+        
+        #xpBar {
+            width: 150px;
+            height: 12px;
+            background: rgba(0, 0, 0, 0.5);
+            border: 1px solid rgba(255, 170, 0, 0.5);
+            border-radius: 6px;
+            overflow: hidden;
+        }
+        
+        #xpFill {
+            height: 100%;
+            background: linear-gradient(90deg, #ffaa00, #ffff00);
+            transition: width 0.3s ease;
+            width: 0%;
+        }
+        
+        #xpText {
+            color: rgba(255, 255, 255, 0.7);
+            font-size: 10px;
+            text-shadow: 1px 1px 2px rgba(0,0,0,0.8);
+        }
+        
+        #abilityTreeMenu {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 700px;
+            min-height: 520px;
+            background: linear-gradient(135deg, rgba(20, 20, 40, 0.95), rgba(30, 20, 60, 0.95));
+            border: 2px solid #ffaa00;
+            border-radius: 18px;
+            padding: 30px;
+            display: none;
+            z-index: 200;
+            overflow: hidden;
+            box-shadow: 0 0 35px rgba(255, 170, 0, 0.4);
+            pointer-events: auto;
+        }
+        
+        #abilityTreeMenu h2 {
+            color: #ffaa00;
+            text-align: center;
+            margin-top: 0;
+            font-size: 26px;
+            text-shadow: 0 0 10px rgba(255, 170, 0, 0.6);
+        }
+        
+        #abilityTreeMenu .close {
+            position: absolute;
+            top: 12px;
+            right: 18px;
+            color: #ffaa00;
+            font-size: 28px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        
+        #abilityTreeMenu .close:hover {
+            color: #ffffff;
+            text-shadow: 0 0 12px rgba(255, 255, 255, 0.8);
+        }
+        
+        .skillPointsDisplay {
+            position: absolute;
+            top: 15px;
+            left: 230px;
+            color: #00ff00;
+            font-weight: bold;
+            font-size: 16px;
+            text-shadow: 0 0 10px rgba(0, 255, 0, 0.6);
+        }
+        
+        .treeContainer {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 25px;
+            margin-top: 50px;
+            height: calc(100% - 90px);
+        }
+        
+        .treeColumn {
+            position: relative;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 16px;
+            padding: 18px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            overflow: hidden;
+        }
+        
+        .treeTitle {
+            color: #ffffff;
+            font-weight: bold;
+            margin-bottom: 18px;
+            font-size: 18px;
+            letter-spacing: 0.05em;
+            text-transform: uppercase;
+        }
+        
+        .treePath {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            width: 100%;
+            gap: 14px;
+        }
+        
+        .treeNode {
+            width: 100%;
+            max-width: 220px;
+            background: rgba(10, 10, 30, 0.9);
+            border: 1px solid rgba(255, 170, 0, 0.2);
+            border-radius: 14px;
+            padding: 14px 12px;
+            text-align: center;
+            color: #fff;
+            position: relative;
+            box-shadow: inset 0 0 20px rgba(255, 170, 0, 0.08);
+        }
+        
+        .treeNode.root {
+            border-color: rgba(255, 170, 0, 0.5);
+            background: rgba(30, 20, 50, 0.95);
+        }
+        
+        .treeNode h3 {
+            margin: 0 0 8px;
+            font-size: 15px;
+            color: #ffaa00;
+        }
+        
+        .treeNode p {
+            margin: 0;
+            font-size: 12px;
+            opacity: 0.75;
+            line-height: 1.4;
+        }
+        
+        .connector {
+            width: 4px;
+            height: 24px;
+            background: linear-gradient(180deg, rgba(255,255,255,0.1), rgba(255,255,255,0.4));
+            margin: 0 auto;
+            border-radius: 4px;
+        }
+        
+        .branchRow {
+            display: flex;
+            gap: 12px;
+            width: 100%;
+            justify-content: center;
+        }
+        
+        .branchRow .treeNode {
+            flex: 1;
+            max-width: none;
+        }
+        
+        .treeNode.empty {
+            opacity: 0.4;
+            border-color: rgba(255, 255, 255, 0.1);
+            color: rgba(255, 255, 255, 0.65);
+        }
+        
+        .treeNode.empty h3 {
+            color: rgba(255, 170, 0, 0.6);
+        }
+    </style>
+</head>
+<body>
+    <canvas id="gameCanvas"></canvas>
+    
+    <div id="ui">
+        <div id="abilities">
+            <div class="abilitySlot speed" id="speedAbility">
+                <div class="abilityIcon">⚡</div>
+                <div class="abilityTimer" id="speedTimer"></div>
+                <div class="abilityCooldown" id="speedCooldown" style="display: none;"></div>
+            </div>
+            <div class="abilitySlot shield" id="shieldAbility">
+                <div class="abilityIcon">🛡️</div>
+                <div class="abilityTimer" id="shieldTimer"></div>
+                <div class="abilityCooldown" id="shieldCooldown" style="display: none;"></div>
+            </div>
+            <div class="abilitySlot invisibility" id="invisibilityAbility">
+                <div class="abilityIcon">👻</div>
+                <div class="abilityTimer" id="invisibilityTimer"></div>
+                <div class="abilityCooldown" id="invisibilityCooldown" style="display: none;"></div>
+            </div>
+        </div>
+        <div id="shieldHealthBar">
+            <div id="shieldHealthFill"></div>
+        </div>
+        <div id="healthBar">
+            <div id="healthFill"></div>
+            <div id="healthText">100/100</div>
+        </div>
+        <div id="crosshair"></div>
+        <div id="ammo">15 / ∞</div>
+        <div id="weaponIndicator">PISTOLA</div>
+        <div id="weaponIcons">
+            <div class="weaponIcon pistol" id="pistolIcon" title="Pistola (1)">
+                🔫
+                <span class="key">1</span>
+            </div>
+            <div class="weaponIcon machineGun" id="machineGunIcon" title="Mitragliatrice (2)">
+                🔥
+                <span class="key">2</span>
+            </div>
+            <div class="weaponIcon shotgun" id="shotgunIcon" title="Fucile (3)">
+                💥
+                <span class="key">3</span>
+            </div>
+            <div class="weaponIcon grenade" id="grenadeIcon" title="Granata (G)">
+                💣
+                <span class="key">G</span>
+                <span class="cooldown" id="grenadeCooldown">20s</span>
+            </div>
+        </div>
+        <div id="reloadBar">
+            <div id="reloadFill"></div>
+        </div>
+        <div id="controls">
+            <div><span class="key">WASD</span> o <span class="key">Frecce ↑↓</span>: Muovi</div>
+            <div><span class="key">Frecce ←→</span>: Ruota visuale</div>
+            <div><span class="key">Spazio</span>: Salto/Doppio salto</div>
+            <div><span class="key">Mouse</span>: Mira</div>
+            <div><span class="key">Click</span> o <span class="key">E</span>: Sparo</div>
+            <div><span class="key">1/2/3</span> o <span class="key">Rotella</span>: Cambia arma</div>
+            <div><span class="key">R</span>: Ricarica</div>
+            <div><span class="key">G</span>: Lancia granata</div>
+            <div><span class="key">ESC</span>: Menu</div>
+        </div>
+        <div id="gameOver">
+            <h2>GAME OVER</h2>
+            <p>Sei sopravvissuto per <span id="survivalTime">0</span> secondi</p>
+            <p>Hai ucciso <span id="kills">0</span> nemici</p>
+            <button id="restartBtn">RIGIOCA</button>
+        </div>
+        
+        <div id="xpContainer">
+            <div id="levelDisplay">LV 1</div>
+            <div id="xpBar">
+                <div id="xpFill"></div>
+            </div>
+            <div id="xpText">0/100 XP</div>
+        </div>
+        
+        <div id="abilityTreeMenu">
+            <span class="close" onclick="closeAbilityTree()">&times;</span>
+            <h2>ALBERO DELLE ABILITÀ</h2>
+            <div class="skillPointsDisplay">Punti Abilità: <span id="skillPoints">0</span></div>
+            
+            <div class="treeContainer">
+                <div class="treeColumn">
+                    <div class="treeTitle">Attacco</div>
+                    <div class="treePath">
+                        <div class="treeNode root">
+                            <h3>Offensiva</h3>
+                            <p>Potenzia il danno, la cadenza e gli effetti offensivi.</p>
+                        </div>
+                        <div class="connector"></div>
+                        <div class="branchRow">
+                            <div class="treeNode" id="node-attack-damage">
+                                <h3>Danno</h3>
+                                <p>Aumenta la forza dei colpi.</p>
+                                <p>Costo: 1</p>
+                                <button onclick="purchaseAbility('attack_damage')">Acquista</button>
+                            </div>
+                            <div class="treeNode" id="node-attack-speed">
+                                <h3>Velocità</h3>
+                                <p>Riduce il tempo tra gli spari.</p>
+                                <p>Costo: 1</p>
+                                <button onclick="purchaseAbility('attack_speed')">Acquista</button>
+                            </div>
+                            <div class="treeNode" id="node-attack-explosive">
+                                <h3>Esplosivo</h3>
+                                <p>Aggiunge un effetto esplosione ai proiettili.</p>
+                                <p>Costo: 2</p>
+                                <button onclick="purchaseAbility('attack_explosive')">Acquista</button>
+                            </div>
+                        </div>
+                        <div class="connector"></div>
+                        <div class="treeNode empty">
+                            <h3>Slot futuro</h3>
+                            <p>Ancora da assegnare.</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="treeColumn">
+                    <div class="treeTitle">Difesa</div>
+                    <div class="treePath">
+                        <div class="treeNode root">
+                            <h3>Protezione</h3>
+                            <p>Migliora la resistenza e la sopravvivenza.</p>
+                        </div>
+                        <div class="connector"></div>
+                        <div class="branchRow">
+                            <div class="treeNode" id="node-defense-shield">
+                                <h3>Scudo</h3>
+                                <p>Assorbe più danno dal primo impatto.</p>
+                                <p>Costo: 1</p>
+                                <button onclick="purchaseAbility('defense_shield')">Acquista</button>
+                            </div>
+                            <div class="treeNode" id="node-defense-health">
+                                <h3>Salute</h3>
+                                <p>Aumenta i punti salute massimi.</p>
+                                <p>Costo: 1</p>
+                                <button onclick="purchaseAbility('defense_health')">Acquista</button>
+                            </div>
+                            <div class="treeNode" id="node-defense-regen">
+                                <h3>Rigenerazione</h3>
+                                <p>Recupera lentamente vita.</p>
+                                <p>Costo: 2</p>
+                                <button onclick="purchaseAbility('defense_regen')">Acquista</button>
+                            </div>
+                        </div>
+                        <div class="connector"></div>
+                        <div class="treeNode empty">
+                            <h3>Slot futuro</h3>
+                            <p>Ancora da assegnare.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/fflate@0.8.0/umd/index.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/FBXLoader.js"></script>
+    <script src="game.js"></script>
+</body>
+</html>
+cod v4 2/textures
