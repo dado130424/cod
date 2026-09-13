@@ -1,0 +1,24 @@
+{
+  "name": "cod-v4-2",
+  "version": "1.0.0",
+  "description": "Sparatutto in prima persona (FPS) con progressione RPG, albero delle abilità e boss, sviluppato in JavaScript puro con Three.js e distribuibile come app desktop tramite Tauri.",
+  "main": "game.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "sync": "node build.js --sync-only",
+    "build": "node build.js"
+  },
+  "keywords": [
+    "fps",
+    "threejs",
+    "webgl",
+    "game",
+    "tauri"
+  ],
+  "author": "Fabio",
+  "license": "MPL-2.0",
+  "type": "commonjs",
+  "devDependencies": {
+    "@tauri-apps/cli": "^2.11.4"
+  }
+}

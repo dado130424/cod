@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Anteprima palla di fuoco (sole)</title>
+<style>
+  html, body { margin: 0; height: 100%; background: #87ceeb; overflow: hidden; }
+  #info { position: fixed; top: 8px; left: 8px; font: 12px/1.5 monospace; color: #fff;
+          text-shadow: 0 1px 2px #000; background: rgba(0,0,0,.35); padding: 6px 10px; border-radius: 6px; }
+</style>
+</head>
+<body>
+<div id="info">caricamento...</div>
+<script src="libs/three.min.js"></script>
+<script src="libs/fflate.min.js"></script>
+<script src="libs/FBXLoader.js"></script>
+<script>
+// Anteprima usa-e-getta: esegue le funzioni VERE di game.js (estratte dal file)
+// con le stesse impostazioni del renderer di gioco (ACES, exposure 1.8, sRGB).
+(async function() {
+  const info = document.getElementById('info');
+  const scene = new THREE.Scene();
+  scene.fog = new THREE.Fog(0x87ceeb, 30, 120);
+
+  const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 500);
+  camera.position.set(0, 4.5, 13);
+  camera.lookAt(0, 3, 0);
+
+  const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false });
+  renderer.setPixelRatio(window.devicePixelRatio || 1);
+  renderer.setSize(window.innerWidth, window.innerHeight);
+  renderer.shadowMap.enabled = true;
+  renderer.shadowMap.type = THREE.BasicShadowMap;
+  renderer.toneMapping = THREE.ACESFilmicToneMapping;
+  renderer.toneMappingExposure = 1.8;
+  renderer.outputEncoding = THREE.sRGBEncoding;
+  renderer.setClearColor(0x87ceeb, 1);
+  document.body.appendChild(renderer.domElement);
+
+  // Luci come in game.js
+  scene.add(new THREE.AmbientLight(0x87ceeb, 0.4));
+  const pointLight = new THREE.PointLight(0xffaa00, 0.8, 20);
+  pointLight.position.set(0, 10, 0); scene.add(pointLight);
+  const spotLight = new THREE.SpotLight(0x00ffff, 0.4);
+  spotLight.position.set(-20, 20, -20); spotLight.angle = Math.PI / 6; spotLight.penumbra = 0.3; scene.add(spotLight);
+  const sunLight = new THREE.DirectionalLight(0xffffff, 1.5);
+  sunLight.position.set(30, 40, -20); scene.add(sunLight);
+
+  // Terreno scuro come in gioco (per vedere la luce del proiettile)
+  const ground = new THREE.Mesh(
+    new THREE.PlaneGeometry(60, 60),
+    new THREE.MeshPhongMaterial({ color: 0x222222, emissive: 0x111122, emissiveIntensity: 0.005, shininess: 5 })
+  );
+  ground.rotation.x = -Math.PI / 2;
+  scene.add(ground);
+
+  // Sagoma alta 12 unità = altezza del boss, per capire la scala
+  const bossProxy = new THREE.Mesh(
+    new THREE.BoxGeometry(4, 12, 2),
+    new THREE.MeshPhongMaterial({ color: 0x888888, transparent: true, opacity: 0.35 })
+  );
+  bossProxy.position.set(-6, 6, 0);
+  scene.add(bossProxy);
+
+  // --- estraggo le funzioni vere da game.js ---
+  const src = await (await fetch('game.js')).text();
+  const slice = (a, b) => src.slice(src.indexOf(a), src.indexOf(b));
+  const code = slice('const SUN_DIAMETER', 'function applySkeletonTextures') +
+               slice('function launchBossFireball', 'function applyBurn');
+  const factory = new Function('THREE', 'scene', 'camera', 'boss', `
+    let sunTemplate = null;
+    let bossFireballs = [];
+    function takeDamage() {}
+    function applyBurn() {}
+    function screenshake() {}
+    function playHitSound() {}
+    ${code}
+    return {
+      loadSunTemplate: loadSunTemplate,
+      createSunFireball: createSunFireball,
+      launch: launchBossFireball,
+      update: updateBossFireballs,
+      state: () => ({ sunTemplate: sunTemplate, bossFireballs: bossFireballs })
+    };
+  `);
+  const boss = { group: new THREE.Group() };
+  const game = factory(THREE, scene, camera, boss);
+  game.loadSunTemplate();
+
+  // Sonda: rende il sole con varie combinazioni di emissiveIntensity/colore e
+  // legge i pixel, così scelgo i valori guardando i numeri invece che a occhio
+  // (in questa webview gli screenshot non si compongono).
+  window.__sweep = function(configs) {
+    const gl = renderer.getContext();
+    const bw = gl.drawingBufferWidth, bh = gl.drawingBufferHeight;
+    const readRect = (x, y, w, h) => {
+      const buf = new Uint8Array(w * h * 4);
+      gl.readPixels(x, y, w, h, gl.RGBA, gl.UNSIGNED_BYTE, buf);
+      const lum = [];
+      let sr = 0, sg = 0, sb = 0, white = 0, n = 0;
+      for (let i = 0; i < buf.length; i += 4) {
+        const R = buf[i], G = buf[i + 1], B = buf[i + 2];
+        sr += R; sg += G; sb += B; n++;
+        lum.push(0.2126 * R + 0.7152 * G + 0.0722 * B);
+        if (R > 250 && G > 250 && B > 250) white++;
+      }
+      lum.sort((a, b) => a - b);
+      return { rgb: [Math.round(sr / n), Math.round(sg / n), Math.round(sb / n)],
+               mean: +(lum.reduce((a, b) => a + b, 0) / n).toFixed(1),
+               p5: +lum[Math.floor(n * 0.05)].toFixed(0), p50: +lum[Math.floor(n * 0.5)].toFixed(0),
+               p95: +lum[Math.floor(n * 0.95)].toFixed(0), pctWhite: +(white / n * 100).toFixed(1) };
+    };
+    // Solo i pixel azzurri (cielo), per misurare il bagliore attorno al sole
+    const readSkyOnly = (x, y, w, h) => {
+      const buf = new Uint8Array(w * h * 4);
+      gl.readPixels(x, y, w, h, gl.RGBA, gl.UNSIGNED_BYTE, buf);
+      let sr = 0, sg = 0, sb = 0, n = 0;
+      for (let i = 0; i < buf.length; i += 4) {
+        if (buf[i + 2] < 196 || buf[i + 2] > 240) continue;   // solo cielo
+        sr += buf[i]; sg += buf[i + 1]; sb += buf[i + 2]; n++;
+      }
+      return n ? [Math.round(sr / n), Math.round(sg / n), Math.round(sb / n), n] : null;
+    };
+    // Solo i pixel del sole (gialli: canale blu basso), per misurare quanto
+    // dettaglio della texture resta visibile dopo il tone mapping
+    const readSunOnly = (x, y, w, h) => {
+      const buf = new Uint8Array(w * h * 4);
+      gl.readPixels(x, y, w, h, gl.RGBA, gl.UNSIGNED_BYTE, buf);
+      const B = [], bins = new Set();
+      let sr = 0, sg = 0, sb = 0, n = 0;
+      for (let i = 0; i < buf.length; i += 4) {
+        if (buf[i + 2] > 190) continue;            // cielo, non sole
+        B.push(buf[i + 2]); sr += buf[i]; sg += buf[i + 1]; sb += buf[i + 2]; n++;
+        bins.add(((buf[i] >> 4) << 8) | ((buf[i + 1] >> 4) << 4) | (buf[i + 2] >> 4));
+      }
+      B.sort((a, b) => a - b);
+      if (!n) return { pixel: 0 };
+      return { pixel: n, rgb: [Math.round(sr / n), Math.round(sg / n), Math.round(sb / n)],
+               b5: B[Math.floor(n * 0.05)], b50: B[Math.floor(n * 0.5)], b95: B[Math.floor(n * 0.95)],
+               sfumature: bins.size };
+    };
+    const sunCore = fireball && fireball.userData.core;
+    return configs.map((cfg) => {
+      if (sunCore) {
+        sunCore.material.emissiveIntensity = cfg.emissive;
+        sunCore.material.color.setHex(cfg.color);
+        if (cfg.shellOpacity !== undefined) fireball.userData.shell.material.opacity = cfg.shellOpacity;
+        sunCore.material.needsUpdate = true;
+        fireball.userData.halos.forEach((h) => { h.visible = cfg.halo !== false; });
+      }
+      renderer.render(scene, camera);
+      const x0 = Math.round(bw / 2 - 80), y0 = Math.round(bh / 2 - 80);
+      const sun = readRect(x0, y0, 160, 160);
+      const sunOnly = readSunOnly(x0, y0, 160, 160);
+      const sky = readRect(10, Math.round(bh - 60), 120, 40);
+      // Cielo vicino al sole (pixel azzurri attorno al disco) vs cielo lontano:
+      // misura quanto si vede il bagliore additivo
+      const near = readSkyOnly(x0 - 60, y0 - 60, 280, 280);
+      return { cfg: cfg, soloSole: sunOnly,
+               cieloVicino: near, cieloLontano: sky.rgb,
+               contrasto: +((sunOnly.rgb ? 0.2126 * sunOnly.rgb[0] + 0.7152 * sunOnly.rgb[1] + 0.0722 * sunOnly.rgb[2] : 0) - sky.mean).toFixed(1) };
+    });
+  };
+
+  let fireball = null, t = 0;
+  function spawn() {
+    game.launch();                       // crea e posiziona il proiettile
+    fireball = game.state().bossFireballs[game.state().bossFireballs.length - 1];
+    fireball.userData.velocity.set(0, 0, 0); // in anteprima lo teniamo fermo
+    info.innerHTML = [
+      'Palla di fuoco del boss: models/sun.fbx + textures/sun_surface.jpg',
+      'diametro ' + fireball.userData.radius.toFixed(1) + ' (collisione) — nucleo 4.4, alone fino a 6.8',
+      'scala: il box grigio a sinistra è alto 12 (altezza boss)',
+      'nucleo e guscio ruotano sull\'asse verticale (guscio al doppio), alone che pulsa'
+    ].join('<br>');
+  }
+
+  let tries = 0;
+  const wait = setInterval(() => {
+    if (game.state().sunTemplate || ++tries > 200) { clearInterval(wait); spawn(); }
+  }, 50);
+
+  (function loop() {
+    requestAnimationFrame(loop);
+    t++;
+    if (fireball) {
+      fireball.position.y = 3 + Math.sin(t * 0.02) * 0.15;
+      fireball.userData.lifetime = 400;  // in anteprima non deve mai scadere
+      game.update();                     // rotazione nucleo/guscio + pulsazione alone
+      fireball.position.set(0, fireball.position.y, 0); // resta al centro
+    }
+    renderer.render(scene, camera);
+
+    // Gli screenshot non si compongono in questa webview: leggo i pixel renderizzati
+    // e li trasformo in ASCII + statistiche, così posso "vedere" il risultato.
+    if (fireball && t > 10 && (!window.__probe || t % 120 === 0)) {
+      const gl = renderer.getContext();
+      const bw = gl.drawingBufferWidth, bh = gl.drawingBufferHeight;
+      const size = 192;
+      const buf = new Uint8Array(size * size * 4);
+      gl.readPixels(Math.floor(bw / 2 - size / 2), Math.floor(bh / 2 - size / 2), size, size, gl.RGBA, gl.UNSIGNED_BYTE, buf);
+      const cols = 48, rows = 24, ramp = ' .:-=+*#%@';
+      let ascii = '', sum = 0, white = 0, n = 0, minL = 999, maxL = -1;
+      for (let r = rows - 1; r >= 0; r--) {
+        for (let c = 0; c < cols; c++) {
+          const px = Math.floor((c + 0.5) * size / cols), py = Math.floor((r + 0.5) * size / rows);
+          const i = (py * size + px) * 4;
+          const R = buf[i], G = buf[i + 1], B = buf[i + 2];
+          const L = 0.2126 * R + 0.7152 * G + 0.0722 * B;
+          sum += L; n++; if (R > 250 && G > 250 && B > 220) white++;
+          minL = Math.min(minL, L); maxL = Math.max(maxL, L);
+          ascii += ramp[Math.min(ramp.length - 1, Math.floor(L / 256 * ramp.length))];
+        }
+        ascii += '\n';
+      }
+      window.__probe = { meanL: +(sum / n).toFixed(1), maxL: +maxL.toFixed(0), minL: +minL.toFixed(0),
+                         pctNearWhite: +(white / n * 100).toFixed(1), ascii: ascii, frame: t };
+    }
+  })();
+})();
+</script>
+</body>
+</html>

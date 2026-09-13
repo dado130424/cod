@@ -1,0 +1,1272 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Shooter FPS</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+            background: #000;
+            font-family: Arial, sans-serif;
+            cursor: crosshair;
+        }
+        
+        #loadingScreen {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: #0a0a1a;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 20px;
+            z-index: 3000;
+            color: #ffffff;
+            font-family: Arial, sans-serif;
+            transition: opacity 0.6s ease;
+        }
+        
+        #loadingScreen.hidden {
+            opacity: 0;
+            pointer-events: none;
+        }
+        
+        #loadingSpinner {
+            width: 48px;
+            height: 48px;
+            border: 4px solid rgba(255, 255, 255, 0.15);
+            border-top-color: #ffaa00;
+            border-radius: 50%;
+            animation: loadingSpin 1s linear infinite;
+        }
+        
+        @keyframes loadingSpin {
+            to { transform: rotate(360deg); }
+        }
+        
+        #loadingTitle {
+            font-size: 42px;
+            font-weight: bold;
+            letter-spacing: 2px;
+            color: #ffaa00;
+            text-shadow: 0 0 20px rgba(255, 170, 0, 0.6);
+            margin: 0;
+        }
+        
+        #loadingTitle span {
+            color: #ffffff;
+        }
+        
+        #loadingBar {
+            width: 320px;
+            height: 10px;
+            background: rgba(255, 255, 255, 0.15);
+            border: 1px solid rgba(255, 255, 255, 0.25);
+            border-radius: 5px;
+            overflow: hidden;
+        }
+        
+        #loadingBarFill {
+            height: 100%;
+            width: 0%;
+            background: linear-gradient(90deg, #ffaa00, #ffcc00);
+            transition: width 0.2s ease;
+        }
+        
+        #loadingText {
+            font-size: 14px;
+            color: #cccccc;
+        }
+        
+        #gameCanvas {
+            display: block;
+        }
+        
+        #ui {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 100;
+        }
+        
+        #healthBar {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            width: 200px;
+            height: 25px;
+            background: rgba(0, 0, 0, 0.7);
+            border: 2px solid #ff0000;
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 0 10px rgba(255, 0, 0, 0.5);
+        }
+        
+        #healthFill {
+            height: 100%;
+            background: linear-gradient(90deg, #ff0000, #ff6666, #ff9999);
+            transition: width 0.3s ease, background 0.3s ease;
+            width: 100%;
+            box-shadow: inset 0 0 10px rgba(255, 255, 255, 0.3);
+        }
+        
+        #healthText {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: white;
+            font-weight: bold;
+            font-size: 12px;
+            text-shadow: 1px 1px 2px rgba(0,0,0,0.8);
+        }
+        
+        #crosshair {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 30px;
+            height: 30px;
+            border: 3px solid rgba(255, 255, 255, 0.8);
+            border-radius: 50%;
+            opacity: 0.9;
+            box-shadow: 0 0 10px rgba(255, 255, 255, 0.5);
+        }
+        
+        #crosshair::before,
+        #crosshair::after {
+            content: '';
+            position: absolute;
+            background: rgba(255, 255, 255, 0.6);
+        }
+        
+        #crosshair::before {
+            width: 2px;
+            height: 10px;
+            top: -15px;
+            left: 50%;
+            transform: translateX(-50%);
+        }
+        
+        #crosshair::after {
+            width: 10px;
+            height: 2px;
+            left: -15px;
+            top: 50%;
+            transform: translateY(-50%);
+        }
+        
+        #gameOver {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            text-align: center;
+            color: white;
+            display: none;
+            background: linear-gradient(135deg, rgba(0, 0, 0, 0.9), rgba(20, 0, 0, 0.9));
+            padding: 40px;
+            border-radius: 20px;
+            border: 2px solid #ff0000;
+            box-shadow: 0 0 30px rgba(255, 0, 0, 0.5);
+        }
+        
+        #gameOver h2 {
+            color: #ff0000;
+            margin-bottom: 20px;
+            font-size: 32px;
+            text-shadow: 0 0 10px rgba(255, 0, 0, 0.8);
+        }
+        
+        #gameOver p {
+            font-size: 18px;
+            margin-bottom: 25px;
+            text-shadow: 1px 1px 2px rgba(0,0,0,0.8);
+        }
+        
+        #restartBtn {
+            background: linear-gradient(135deg, #ff0000, #cc0000);
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            font-size: 18px;
+            font-weight: bold;
+            border-radius: 10px;
+            cursor: pointer;
+            pointer-events: all;
+            box-shadow: 0 4px 15px rgba(255, 0, 0, 0.3);
+            transition: all 0.3s ease;
+        }
+        
+        #restartBtn:hover {
+            background: linear-gradient(135deg, #ff3333, #ff0000);
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(255, 0, 0, 0.4);
+        }
+        
+        #ammo {
+            position: absolute;
+            bottom: 20px;
+            right: 20px;
+            color: white;
+            font-size: 18px;
+            font-weight: bold;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.8);
+        }
+        
+        #weaponIndicator {
+            position: absolute;
+            bottom: 50px;
+            right: 20px;
+            color: #ffaa00;
+            font-size: 16px;
+            font-weight: bold;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.8);
+            background: rgba(0, 0, 0, 0.6);
+            padding: 5px 10px;
+            border-radius: 5px;
+            border: 1px solid rgba(255, 255, 255, 0.3);
+        }
+        
+        #weaponIcons {
+            position: absolute;
+            bottom: 100px;
+            right: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            pointer-events: none;
+        }
+        
+        .weaponIcon {
+            width: 50px;
+            height: 50px;
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            border-radius: 8px;
+            background: rgba(0, 0, 0, 0.5);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+            color: rgba(255, 255, 255, 0.3);
+            transition: all 0.3s ease;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.5);
+            position: relative;
+        }
+        
+        .weaponIcon .key {
+            position: absolute;
+            top: 2px;
+            left: 2px;
+            font-size: 10px;
+            font-weight: bold;
+            color: rgba(255, 255, 255, 0.8);
+            text-shadow: 1px 1px 2px rgba(0,0,0,0.8);
+        }
+        
+        .weaponIcon .cooldown {
+            position: absolute;
+            bottom: 2px;
+            right: 2px;
+            font-size: 8px;
+            font-weight: bold;
+            color: #ff0000;
+            background: rgba(0, 0, 0, 0.7);
+            padding: 1px 3px;
+            border-radius: 3px;
+            display: none;
+        }
+        
+        .weaponIcon .grenadeCount {
+            position: absolute;
+            bottom: 2px;
+            left: 2px;
+            font-size: 10px;
+            font-weight: bold;
+            color: #00ff00;
+            background: rgba(0, 0, 0, 0.7);
+            padding: 1px 3px;
+            border-radius: 3px;
+        }
+        
+        .weaponIcon.active {
+            border-color: #ffffff;
+            background: rgba(255, 255, 255, 0.2);
+            color: #ffffff;
+            box-shadow: 0 0 15px rgba(255, 255, 255, 0.5);
+        }
+        
+        .weaponIcon.pistol {
+            border-color: rgba(255, 170, 0, 0.3);
+        }
+        
+        .weaponIcon.pistol.active {
+            border-color: #ffaa00;
+            background: rgba(255, 170, 0, 0.3);
+            color: #ffaa00;
+            box-shadow: 0 0 15px rgba(255, 170, 0, 0.5);
+        }
+        
+        .weaponIcon.machineGun {
+            border-color: rgba(255, 102, 0, 0.3);
+        }
+        
+        .weaponIcon.machineGun.active {
+            border-color: #ff6600;
+            background: rgba(255, 102, 0, 0.3);
+            color: #ff6600;
+            box-shadow: 0 0 15px rgba(255, 102, 0, 0.5);
+        }
+        
+        .weaponIcon.shotgun {
+            border-color: rgba(255, 255, 0, 0.3);
+        }
+        
+        .weaponIcon.shotgun.active {
+            border-color: #ffff00;
+            background: rgba(255, 255, 0, 0.3);
+            color: #ffff00;
+            box-shadow: 0 0 15px rgba(255, 255, 0, 0.5);
+        }
+        
+        .weaponIcon.grenade {
+            border-color: rgba(0, 255, 0, 0.3);
+        }
+        
+        .weaponIcon.grenade.active {
+            border-color: #00ff00;
+            background: rgba(0, 255, 0, 0.3);
+            color: #00ff00;
+            box-shadow: 0 0 15px rgba(0, 255, 0, 0.5);
+        }
+        
+        #reloadBar {
+            position: absolute;
+            bottom: 90px;
+            right: 20px;
+            width: 200px;
+            height: 8px;
+            background: rgba(255, 255, 255, 0.2);
+            border: 1px solid rgba(255, 255, 255, 0.5);
+            border-radius: 4px;
+            overflow: hidden;
+            display: none;
+        }
+        
+        #reloadFill {
+            height: 100%;
+            background: linear-gradient(90deg, #ff9900, #ffcc00);
+            transition: width 0.1s linear;
+            width: 0%;
+        }
+        
+        #controls {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            color: white;
+            text-align: right;
+            font-size: 12px;
+            opacity: 0.8;
+            background: rgba(0, 0, 0, 0.6);
+            padding: 15px;
+            border-radius: 10px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            text-shadow: 1px 1px 2px rgba(0,0,0,0.8);
+        }
+        
+        #controls div {
+            margin: 3px 0;
+        }
+        
+        #controls .key {
+            color: #ffcc00;
+            font-weight: bold;
+        }
+        
+        #abilities {
+            position: absolute;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            gap: 15px;
+            pointer-events: none;
+            z-index: 100;
+        }
+        
+        .abilitySlot {
+            width: 60px;
+            height: 60px;
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            border-radius: 10px;
+            background: rgba(0, 0, 0, 0.7);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+            transition: all 0.3s ease;
+        }
+        
+        .abilitySlot.active {
+            border-color: #ffffff;
+            background: rgba(255, 255, 255, 0.2);
+            box-shadow: 0 0 20px rgba(255, 255, 255, 0.6);
+            animation: abilityPulse 1s infinite;
+        }
+        
+        .abilitySlot.speed {
+            border-color: rgba(255, 255, 0, 0.3);
+        }
+        
+        .abilitySlot.speed.active {
+            border-color: #ffff00;
+            background: rgba(255, 255, 0, 0.3);
+            box-shadow: 0 0 20px rgba(255, 255, 0, 0.6);
+        }
+        
+        .abilitySlot.shield {
+            border-color: rgba(0, 255, 0, 0.3);
+        }
+        
+        .abilitySlot.shield.active {
+            border-color: #00ff00;
+            background: rgba(0, 255, 0, 0.3);
+            box-shadow: 0 0 20px rgba(0, 255, 0, 0.6);
+        }
+        
+        .abilitySlot.invisibility {
+            border-color: rgba(255, 0, 255, 0.3);
+        }
+        
+        .abilitySlot.invisibility.active {
+            border-color: #ff00ff;
+            background: rgba(255, 0, 255, 0.3);
+            box-shadow: 0 0 20px rgba(255, 0, 255, 0.6);
+        }
+        
+        .abilityIcon {
+            font-size: 24px;
+            margin-bottom: 2px;
+        }
+        
+        .abilityTimer {
+            font-size: 10px;
+            color: white;
+            font-weight: bold;
+            text-shadow: 1px 1px 2px rgba(0,0,0,0.8);
+        }
+        
+        .abilityCooldown {
+            position: absolute;
+            bottom: 2px;
+            right: 2px;
+            font-size: 8px;
+            color: #ff6666;
+            background: rgba(0, 0, 0, 0.8);
+            padding: 1px 3px;
+            border-radius: 3px;
+            font-weight: bold;
+        }
+        
+        #shieldHealthBar {
+            position: absolute;
+            top: 85px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 120px;
+            height: 6px;
+            background: rgba(0, 0, 0, 0.7);
+            border: 1px solid #00ff00;
+            border-radius: 3px;
+            overflow: hidden;
+            display: none;
+        }
+        
+        #shieldHealthFill {
+            height: 100%;
+            background: linear-gradient(90deg, #00ff00, #66ff66);
+            transition: width 0.3s ease;
+            width: 100%;
+        }
+        
+        @keyframes abilityPulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+        }
+        
+        #xpContainer {
+            position: absolute;
+            bottom: 20px;
+            left: 20px;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            background: rgba(0, 0, 0, 0.7);
+            padding: 10px 15px;
+            border-radius: 10px;
+            border: 1px solid rgba(255, 170, 0, 0.5);
+        }
+        
+        #levelDisplay {
+            color: #ffaa00;
+            font-weight: bold;
+            font-size: 16px;
+            text-shadow: 1px 1px 2px rgba(0,0,0,0.8);
+            min-width: 80px;
+        }
+        
+        #xpBar {
+            width: 150px;
+            height: 12px;
+            background: rgba(0, 0, 0, 0.5);
+            border: 1px solid rgba(255, 170, 0, 0.5);
+            border-radius: 6px;
+            overflow: hidden;
+        }
+        
+        #xpFill {
+            height: 100%;
+            background: linear-gradient(90deg, #ffaa00, #ffff00);
+            transition: width 0.3s ease;
+            width: 0%;
+        }
+        
+        #xpText {
+            color: rgba(255, 255, 255, 0.7);
+            font-size: 10px;
+            text-shadow: 1px 1px 2px rgba(0,0,0,0.8);
+        }
+        
+        #abilityTreeMenu {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 98%;
+            max-width: 1400px;
+            height: 85%;
+            background: linear-gradient(135deg, rgba(20, 20, 40, 0.95), rgba(10, 10, 30, 0.98));
+            border: 2px solid rgba(255, 170, 0, 0.3);
+            border-radius: 15px;
+            padding: 10px;
+            color: #ffffff;
+            font-size: 11px;
+            overflow-y: auto;
+            pointer-events: auto;
+        }
+        
+        #abilityTreeMenu h2 {
+            color: #ffaa00;
+            text-align: center;
+            margin-top: 0;
+            font-size: 26px;
+            text-shadow: 0 0 10px rgba(255, 170, 0, 0.6);
+        }
+        
+        #abilityTreeMenu .close {
+            position: absolute;
+            top: 12px;
+            right: 18px;
+            color: #ffaa00;
+            font-size: 28px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        
+        #abilityTreeMenu .close:hover {
+            color: #ffffff;
+            text-shadow: 0 0 12px rgba(255, 255, 255, 0.8);
+        }
+        
+        .skillPointsDisplay {
+            position: absolute;
+            top: 15px;
+            left: 230px;
+            color: #00ff00;
+            font-weight: bold;
+            font-size: 16px;
+            text-shadow: 0 0 10px rgba(0, 255, 0, 0.6);
+        }
+        
+        .treeContainer {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 15px;
+            margin-top: 40px;
+            height: calc(100% - 70px);
+        }
+        
+        .treeColumn {
+            position: relative;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 12px;
+            padding: 8px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            overflow: hidden;
+        }
+        
+        .treeTitle {
+            color: #ffffff;
+            font-weight: bold;
+            margin-bottom: 8px;
+            font-size: 12px;
+            letter-spacing: 0.05em;
+            text-transform: uppercase;
+        }
+        
+        .treePath {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            width: 100%;
+            gap: 6px;
+        }
+        
+        .treeNode {
+            width: 100%;
+            max-width: 160px;
+            background: rgba(10, 10, 30, 0.9);
+            border: 1px solid rgba(255, 170, 0, 0.2);
+            border-radius: 8px;
+            padding: 6px 4px;
+            text-align: center;
+            color: #fff;
+            position: relative;
+            box-shadow: inset 0 0 20px rgba(255, 170, 0, 0.08);
+        }
+        
+        .treeNode.root {
+            border-color: rgba(255, 170, 0, 0.5);
+            background: rgba(30, 20, 50, 0.95);
+        }
+        
+        .treeNode h3 {
+            margin: 0 0 4px;
+            font-size: 10px;
+            color: #ffaa00;
+        }
+        
+        .treeNode p {
+            margin: 0;
+            font-size: 9px;
+            opacity: 0.75;
+            line-height: 1.2;
+        }
+        
+        .connector {
+            width: 2px;
+            height: 12px;
+            background: linear-gradient(180deg, rgba(255,255,255,0.1), rgba(255,255,255,0.4));
+            margin: 0 auto;
+            border-radius: 2px;
+        }
+        
+        .branchRow {
+            display: flex;
+            gap: 12px;
+            width: 100%;
+            justify-content: center;
+        }
+        
+        .branchRow .treeNode {
+            flex: 1;
+            max-width: none;
+        }
+        
+        .treeNode.empty {
+            opacity: 0.4;
+            border-color: rgba(255, 255, 255, 0.1);
+            color: rgba(255, 255, 255, 0.65);
+        }
+        
+        .treeNode.empty h3 {
+            color: rgba(255, 170, 0, 0.6);
+        }
+        
+        #hitMarker {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 40px;
+            height: 40px;
+            transform: translate(-50%, -50%);
+            pointer-events: none;
+            opacity: 0;
+            z-index: 150;
+        }
+        
+        #hitMarker::before,
+        #hitMarker::after {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 2px;
+            height: 22px;
+            background: #ffffff;
+            box-shadow: 0 0 6px rgba(255, 255, 255, 0.9);
+        }
+        
+        #hitMarker::before {
+            transform: translate(-50%, -50%) rotate(45deg);
+        }
+        
+        #hitMarker::after {
+            transform: translate(-50%, -50%) rotate(-45deg);
+        }
+        
+        #hitMarker.show {
+            animation: hitMarkerFade 0.15s ease-out forwards;
+        }
+        
+        @keyframes hitMarkerFade {
+            0% { opacity: 1; transform: translate(-50%, -50%) scale(1.5); }
+            100% { opacity: 0; transform: translate(-50%, -50%) scale(0.8); }
+        }
+        
+        #damageOverlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            background: radial-gradient(ellipse at center, rgba(255, 0, 0, 0.25) 0%, rgba(200, 0, 0, 0.6) 100%);
+            opacity: 0;
+            z-index: 90;
+        }
+        
+        #damageOverlay.flash {
+            animation: damageFlash 0.5s ease-out forwards;
+        }
+        
+        @keyframes damageFlash {
+            0% { opacity: 0.9; }
+            100% { opacity: 0; }
+        }
+        
+        #vignette {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            background: radial-gradient(ellipse at center, rgba(0, 0, 0, 0) 50%, rgba(120, 0, 0, 0.8) 100%);
+            opacity: 0;
+            transition: opacity 0.3s ease;
+            z-index: 95;
+        }
+        
+        #burnOverlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            background: radial-gradient(ellipse at center, rgba(255, 120, 0, 0.15) 0%, rgba(255, 60, 0, 0.55) 100%);
+            opacity: 0;
+            transition: opacity 0.3s ease;
+            z-index: 94;
+        }
+        
+        .damageNumber {
+            position: absolute;
+            pointer-events: none;
+            color: #ffff00;
+            font-size: 22px;
+            font-weight: bold;
+            text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.9);
+            z-index: 1000;
+            white-space: nowrap;
+            animation: damageFloat 0.8s ease-out forwards;
+        }
+        
+        @keyframes damageFloat {
+            0% { opacity: 1; transform: translate(-50%, -50%); }
+            100% { opacity: 0; transform: translate(-50%, -200%); }
+        }
+        
+        #mainMenu,
+        #settingsMenu {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 18px;
+            background: linear-gradient(135deg, rgba(10, 10, 25, 0.92), rgba(5, 5, 15, 0.95));
+            z-index: 2000;
+            pointer-events: all;
+            text-align: center;
+        }
+        
+        #settingsMenu {
+            display: none;
+        }
+        
+        .menuTitle {
+            color: #ffaa00;
+            font-size: 52px;
+            margin: 0;
+            text-shadow: 0 0 20px rgba(255, 170, 0, 0.7);
+            letter-spacing: 2px;
+        }
+        
+        .menuTitle span {
+            color: #ffffff;
+        }
+        
+        .menuSubtitle {
+            color: #cccccc;
+            font-size: 16px;
+            margin: 0 0 10px 0;
+        }
+        
+        .menuBtn {
+            background: linear-gradient(135deg, #ffaa00, #cc7700);
+            color: #111;
+            border: none;
+            padding: 14px 40px;
+            font-size: 20px;
+            font-weight: bold;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            box-shadow: 0 4px 15px rgba(255, 170, 0, 0.3);
+            letter-spacing: 1px;
+        }
+        
+        .menuBtn:hover {
+            transform: scale(1.05);
+            box-shadow: 0 6px 22px rgba(255, 170, 0, 0.5);
+        }
+        
+        .menuBtn.primary {
+            background: linear-gradient(135deg, #44ff44, #00cc00);
+            color: #052505;
+            box-shadow: 0 4px 15px rgba(68, 255, 68, 0.3);
+        }
+        
+        .menuControls {
+            color: #aaaaaa;
+            font-size: 13px;
+            margin-top: 8px;
+            line-height: 1.7;
+        }
+        
+        .menuControls b {
+            color: #ffcc00;
+        }
+        
+        .settingRow {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            color: #ffffff;
+            font-size: 16px;
+        }
+        
+        .settingRow label {
+            width: 170px;
+            text-align: right;
+        }
+        
+        .settingRow input[type=range] {
+            width: 220px;
+            cursor: pointer;
+        }
+        
+        .settingValue {
+            color: #ffaa00;
+            font-weight: bold;
+            min-width: 55px;
+            text-align: left;
+        }
+        
+        #waveDisplay {
+            position: absolute;
+            top: 95px;
+            left: 50%;
+            transform: translateX(-50%);
+            color: #00ffff;
+            font-size: 20px;
+            font-weight: bold;
+            text-shadow: 1px 1px 3px rgba(0, 0, 0, 0.9);
+            background: rgba(0, 0, 0, 0.55);
+            padding: 6px 16px;
+            border-radius: 8px;
+            border: 1px solid rgba(0, 255, 255, 0.4);
+            pointer-events: none;
+            z-index: 100;
+        }
+        
+        #bossHealthBar {
+            position: absolute;
+            top: 132px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 420px;
+            height: 22px;
+            background: rgba(0, 0, 0, 0.7);
+            border: 2px solid #ff0000;
+            border-radius: 11px;
+            overflow: hidden;
+            display: none;
+            box-shadow: 0 0 15px rgba(255, 0, 0, 0.6);
+            pointer-events: none;
+            z-index: 100;
+        }
+        
+        #bossHealthFill {
+            height: 100%;
+            background: linear-gradient(90deg, #aa0000, #ff3333, #ff0000);
+            width: 100%;
+            transition: width 0.15s ease;
+        }
+        
+        #bossHealthText {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: #ffffff;
+            font-weight: bold;
+            font-size: 12px;
+            letter-spacing: 2px;
+            text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.9);
+            z-index: 2;
+        }
+        
+        .waveBanner {
+            position: absolute;
+            top: 40%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: #00ffff;
+            font-size: 42px;
+            font-weight: bold;
+            text-shadow: 0 0 18px rgba(0, 255, 255, 0.9);
+            pointer-events: none;
+            z-index: 1000;
+            white-space: nowrap;
+            animation: waveBanner 2s ease-out forwards;
+        }
+        
+        @keyframes waveBanner {
+            0% { opacity: 0; transform: translate(-50%, -50%) scale(0.6); }
+            15% { opacity: 1; transform: translate(-50%, -50%) scale(1.05); }
+            25% { transform: translate(-50%, -50%) scale(1); }
+            80% { opacity: 1; }
+            100% { opacity: 0; transform: translate(-50%, -50%) scale(1); }
+        }
+        
+        #hitMarker.crit::before,
+        #hitMarker.crit::after {
+            background: #ff3333;
+            box-shadow: 0 0 8px rgba(255, 60, 60, 0.9);
+        }
+        
+        .damageNumber.crit {
+            color: #ff3333;
+            font-size: 28px;
+        }
+    </style>
+</head>
+<body>
+    <div id="loadingScreen">
+        <div id="loadingSpinner"></div>
+        <h1 id="loadingTitle">COD <span>v4.2</span></h1>
+        <div id="loadingBar">
+            <div id="loadingBarFill"></div>
+        </div>
+        <div id="loadingText">Caricamento... 0%</div>
+    </div>
+    <canvas id="gameCanvas"></canvas>
+    
+    <div id="ui">
+        <div id="damageOverlay"></div>
+        <div id="vignette"></div>
+        <div id="burnOverlay"></div>
+        <div id="hitMarker"></div>
+        <div id="abilities">
+            <div class="abilitySlot speed" id="speedAbility">
+                <div class="abilityIcon">⚡</div>
+                <div class="abilityTimer" id="speedTimer"></div>
+                <div class="abilityCooldown" id="speedCooldown" style="display: none;"></div>
+            </div>
+            <div class="abilitySlot shield" id="shieldAbility">
+                <div class="abilityIcon">🛡️</div>
+                <div class="abilityTimer" id="shieldTimer"></div>
+                <div class="abilityCooldown" id="shieldCooldown" style="display: none;"></div>
+            </div>
+            <div class="abilitySlot invisibility" id="invisibilityAbility">
+                <div class="abilityIcon">👻</div>
+                <div class="abilityTimer" id="invisibilityTimer"></div>
+                <div class="abilityCooldown" id="invisibilityCooldown" style="display: none;"></div>
+            </div>
+        </div>
+        <div id="shieldHealthBar">
+            <div id="shieldHealthFill"></div>
+        </div>
+        <div id="waveDisplay"></div>
+        <div id="bossHealthBar">
+            <div id="bossHealthFill"></div>
+            <div id="bossHealthText">BOSS</div>
+        </div>
+        <div id="healthBar">
+            <div id="healthFill"></div>
+            <div id="healthText">100/100</div>
+        </div>
+        <div id="crosshair"></div>
+        <div id="ammo">15 / ∞</div>
+        <div id="weaponIndicator">PISTOLA</div>
+        <div id="weaponIcons">
+            <div class="weaponIcon pistol" id="pistolIcon" title="Pistola (1)">
+                🔫
+                <span class="key">1</span>
+            </div>
+            <div class="weaponIcon machineGun" id="machineGunIcon" title="Mitragliatrice (2)">
+                🔥
+                <span class="key">2</span>
+            </div>
+            <div class="weaponIcon shotgun" id="shotgunIcon" title="Fucile (3)">
+                💥
+                <span class="key">3</span>
+            </div>
+            <div class="weaponIcon grenade" id="grenadeIcon" title="Granata (G)">
+                💣
+                <span class="key">G</span>
+                <span class="grenadeCount" id="grenadeCount">3</span>
+                <span class="cooldown" id="grenadeCooldown">20s</span>
+            </div>
+        </div>
+        <div id="reloadBar">
+            <div id="reloadFill"></div>
+        </div>
+        <div id="controls">
+            <div><span class="key">WASD</span> o <span class="key">Frecce ↑↓</span>: Muovi</div>
+            <div><span class="key">Frecce ←→</span>: Ruota visuale</div>
+            <div><span class="key">Spazio</span>: Salto/Doppio salto</div>
+            <div><span class="key">Mouse</span>: Mira</div>
+            <div><span class="key">Click</span> o <span class="key">E</span>: Sparo</div>
+            <div><span class="key">1/2/3</span> o <span class="key">Rotella</span>: Cambia arma</div>
+            <div><span class="key">R</span>: Ricarica</div>
+            <div><span class="key">G</span>: Lancia granata</div>
+            <div><span class="key">ESC</span>: Menu</div>
+        </div>
+        <div id="gameOver">
+            <h2>GAME OVER</h2>
+            <p>Sei sopravvissuto per <span id="survivalTime">0</span> secondi</p>
+            <p>Hai ucciso <span id="kills">0</span> nemici</p>
+            <button id="restartBtn">RIGIOCA</button>
+        </div>
+        
+        <div id="xpContainer">
+            <div id="levelDisplay">LV 1</div>
+            <div id="xpBar">
+                <div id="xpFill"></div>
+            </div>
+            <div id="xpText">0/100 XP</div>
+        </div>
+        
+        <div id="abilityTreeMenu">
+            <span class="close" onclick="closeAbilityTree()">&times;</span>
+            <h2>ALBERO DELLE ABILITÀ</h2>
+            <div class="skillPointsDisplay">Punti Abilità: <span id="skillPoints">0</span></div>
+            
+            <div class="treeContainer">
+                <div class="treeColumn">
+                    <div class="treeTitle">Attacco</div>
+                    <div class="treePath">
+                        <div class="treeNode root">
+                            <h3>Offensiva</h3>
+                            <p>Potenzia il danno, la cadenza e gli effetti offensivi.</p>
+                        </div>
+                        <div class="connector"></div>
+                        <div class="branchRow">
+                            <div class="treeNode" id="node-attack-damage-1">
+                                <h3>Lama Affilata I</h3>
+                                <p>Aumenta il danno base del 15%</p>
+                                <p>Costo: 1</p>
+                                <button onclick="purchaseAbility('attack_damage_1')">Acquista</button>
+                            </div>
+                        </div>
+                        <div class="connector"></div>
+                        <div class="branchRow">
+                            <div class="treeNode" id="node-attack-speed-1">
+                                <h3>Tocco Veloce I</h3>
+                                <p>Aumenta la cadenza di fuoco del 20%</p>
+                                <p>Costo: 2</p>
+                                <button onclick="purchaseAbility('attack_speed_1')">Acquista</button>
+                            </div>
+                        </div>
+                        <div class="connector"></div>
+                        <div class="branchRow">
+                            <div class="treeNode" id="node-attack-pierce-1">
+                                <h3>Proiettile Fantasma</h3>
+                                <p>I proiettili attraversano 1 nemico</p>
+                                <p>Costo: 3</p>
+                                <button onclick="purchaseAbility('attack_pierce_1')">Acquista</button>
+                            </div>
+                        </div>
+                        <div class="connector"></div>
+                        <div class="branchRow">
+                            <div class="treeNode" id="node-attack-reload-1">
+                                <h3>Ricarica Istantanea</h3>
+                                <p>Riduce del 25% il tempo di ricarica</p>
+                                <p>Costo: 6</p>
+                                <button onclick="purchaseAbility('attack_reload_1')">Acquista</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="treeColumn">
+                    <div class="treeTitle">Difesa</div>
+                    <div class="treePath">
+                        <div class="treeNode root">
+                            <h3>Protezione</h3>
+                            <p>Migliora la resistenza e la sopravvivenza.</p>
+                        </div>
+                        <div class="connector"></div>
+                        <div class="branchRow">
+                            <div class="treeNode" id="node-defense-regen-1">
+                                <h3>Recupero I</h3>
+                                <p>Rigenera 0.5 salute al secondo</p>
+                                <p>Costo: 2</p>
+                                <button onclick="purchaseAbility('defense_regen_1')">Acquista</button>
+                            </div>
+                        </div>
+                        <div class="connector"></div>
+                        <div class="branchRow">
+                            <div class="treeNode" id="node-defense-health-1">
+                                <h3>Vitalità I</h3>
+                                <p>Aumenta salute massima di 25</p>
+                                <p>Costo: 3</p>
+                                <button onclick="purchaseAbility('defense_health_1')">Acquista</button>
+                            </div>
+                        </div>
+                        <div class="connector"></div>
+                        <div class="branchRow">
+                            <div class="treeNode" id="node-defense-regen-2">
+                                <h3>Recupero II</h3>
+                                <p>Rigenera 1 salute al secondo</p>
+                                <p>Costo: 4</p>
+                                <button onclick="purchaseAbility('defense_regen_2')">Acquista</button>
+                            </div>
+                        </div>
+                        <div class="connector"></div>
+                        <div class="branchRow">
+                            <div class="treeNode" id="node-defense-damage-reduction-1">
+                                <h3>Armatura Rinforzata</h3>
+                                <p>Riduce i danni subiti del 25%</p>
+                                <p>Costo: 8</p>
+                                <button onclick="purchaseAbility('defense_damage_reduction_1')">Acquista</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="treeColumn">
+                    <div class="treeTitle">Utilità</div>
+                    <div class="treePath">
+                        <div class="treeNode root">
+                            <h3>Mobilità</h3>
+                            <p>Migliora movimento e abilità speciali.</p>
+                        </div>
+                        <div class="connector"></div>
+                        <div class="branchRow">
+                            <div class="treeNode" id="node-utility-speed-1">
+                                <h3>Scatto Rapido I</h3>
+                                <p>Aumenta velocità di movimento del 25%</p>
+                                <p>Costo: 1</p>
+                                <button onclick="purchaseAbility('utility_speed_1')">Acquista</button>
+                            </div>
+                        </div>
+                        <div class="connector"></div>
+                        <div class="branchRow">
+                            <div class="treeNode" id="node-utility-jump-1">
+                                <h3>Salto Potenziato</h3>
+                                <p>Aumenta altezza salto e permette triplo salto</p>
+                                <p>Costo: 2</p>
+                                <button onclick="purchaseAbility('utility_jump_1')">Acquista</button>
+                            </div>
+                        </div>
+                        <div class="connector"></div>
+                        <div class="branchRow">
+                            <div class="treeNode" id="node-utility-grenades-1">
+                                <h3>Esplosivo Potenziato</h3>
+                                <p>Aumenta munizioni granate a 5 e raggio esplosione del 50%</p>
+                                <p>Costo: 3</p>
+                                <button onclick="purchaseAbility('utility_grenades_1')">Acquista</button>
+                            </div>
+                        </div>
+                        <div class="connector"></div>
+                        <div class="branchRow">
+                            <div class="treeNode" id="node-utility-fire-persistence-1">
+                                <h3>Inferno Granata</h3>
+                                <p>Le granate lasciano fuoco per 4 secondi che causa danni</p>
+                                <p>Costo: 4</p>
+                                <button onclick="purchaseAbility('utility_fire_persistence_1')">Acquista</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div id="mainMenu">
+        <h1 class="menuTitle">COD <span>v4.2</span></h1>
+        <p class="menuSubtitle">Sparatutto in prima persona - Browser FPS</p>
+        <button class="menuBtn primary" onclick="startGame()">GIOCA</button>
+        <button class="menuBtn" onclick="openSettings('main')">IMPOSTAZIONI</button>
+        <div class="menuControls">
+            <div><b>WASD</b> Muovi &nbsp;·&nbsp; <b>Mouse</b> Mira &nbsp;·&nbsp; <b>Click</b> Sparo</div>
+            <div><b>R</b> Ricarica &nbsp;·&nbsp; <b>G</b> Granata &nbsp;·&nbsp; <b>1/2/3</b> Armi</div>
+            <div><b>E</b> Skill Tree &nbsp;·&nbsp; <b>ESC</b> Pausa</div>
+        </div>
+    </div>
+    
+    <div id="settingsMenu">
+        <h1 class="menuTitle">IMPOSTAZIONI</h1>
+        <div class="settingRow">
+            <label for="sensitivitySlider">Sensibilità mouse</label>
+            <input type="range" id="sensitivitySlider" min="0.0005" max="0.005" step="0.0001" value="0.002" oninput="updateSensitivity(this.value)">
+            <span id="sensitivityValue" class="settingValue">2.0</span>
+        </div>
+        <div class="settingRow">
+            <label for="volumeSlider">Volume audio</label>
+            <input type="range" id="volumeSlider" min="0" max="1" step="0.05" value="1" oninput="updateVolume(this.value)">
+            <span id="volumeValue" class="settingValue">100%</span>
+        </div>
+        <button class="menuBtn" onclick="closeSettings()">INDIETRO</button>
+    </div>
+    
+    <script src="libs/three.min.js"></script>
+    <script src="libs/fflate.min.js"></script>
+    <script src="libs/FBXLoader.js"></script>
+    <script src="game.js"></script>
+</body>
+</html>
+cod v4 2/textures

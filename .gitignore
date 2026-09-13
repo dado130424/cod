@@ -1,0 +1,28 @@
+# Dipendenze
+node_modules/
+
+# Artefatti di compilazione Rust/Tauri (oltre 2 GB, ricreati da `npm run build`)
+src-tauri/target/
+src-tauri/gen/schemas/
+
+# Cartella generata da build.js: contiene una copia dei sorgenti che Tauri
+# incorpora nell'eseguibile, quindi non serve versionarla
+dist/
+
+# Pacchetto sorgente dello scheletro scaricato a parte (~31 MB): i file usati
+# dal gioco sono già in models/ e textures/, quindi non va versionato
+Undead_Skeleton_*/
+
+# Log di build e stato locale dell'editor / dell'agente
+build_log.txt
+.freebuff/
+
+# Copia filtrata del progetto pronta da caricare su GitHub: è un duplicato
+# locale, non deve finire dentro il repository
+upload-github/
+
+# File di sistema ed editor
+.DS_Store
+Thumbs.db
+desktop.ini
+*.log
