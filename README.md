@@ -137,7 +137,6 @@ Tre scelte caratterizzano l'implementazione, tutte documentate con i numeri misu
 
 - **Precaricamento completo all'avvio.** three.js carica texture e shader in modo pigro, alla prima volta che un materiale viene disegnato: nel gioco questo significava uno scatto di circa un secondo al primo cambio d'arma. Alla fine del caricamento il gioco aggancia temporaneamente i modelli non ancora in scena, compila tutti gli shader e forza tutte le texture in memoria video: da lì in poi il conteggio non cambia più.
 - **Numero di luci costante.** three.js include il numero di luci nella chiave di cache degli shader: aggiungere o togliere una sola luce faceva ricompilare tutti i materiali. Le luci dinamiche (cristalli, pickup, granate, esplosioni, palle di fuoco) vengono ora create all'avvio e restano in scena, variando solo di intensità.
-- **Barra di caricamento volutamente finta.** Non è collegata all'avanzamento reale: sale fino al 99% e si ferma lì, e scatta al 100% solo quando il caricamento è davvero terminato.
 
 ## 🎨 Crediti degli asset
 
